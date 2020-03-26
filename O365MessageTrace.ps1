@@ -36,25 +36,52 @@ function Get-O365MessageTrace
 
 function Get-O365MessageTraceDetail($SummaryReport)
 {
-    Read-Host "Press Any Key start long running Get-MessageTraceDetail"
+    Write-Host -ForegroundColor Yellow "Do you want to run Get-MessageTraceDetail and export CSV output?
+    Warning : This is a long running diagnostic
+    A: Yes
+    B: No"
 
-    $TotalNumberOfEmails = $SummaryReport.Count
-    $i = 1
-    foreach($MessageTrace in $SummaryReport)
+    $MessageTraceDetailRequested = Read-Host
+
+    switch ($MessageTraceDetailRequested) 
     {
-        Clear-Host
-        Write-Host "Processing Email #$i from $TotalNumberOfEmails" 
-        $SummaryReportDetail = Get-MessageTraceDetail -StartDate $StartDate -EndDate $EndDate -MessageTraceId $MessageTrace.MessageTraceId -RecipientAddress $MessageTrace.RecipientAddress
-        $MTDReport += $SummaryReportDetail
+        'A' 
+        {
+            $TotalNumberOfEmails = $SummaryReport.Count
+            $i = 1
+            foreach($MessageTrace in $SummaryReport)
+            {
+                Clear-Host
+                Write-Host "Processing Email #$i from $TotalNumberOfEmails" 
+                $MessageTraceDetail = Get-MessageTraceDetail -StartDate $StartDate -EndDate $EndDate -MessageTraceId $MessageTrace.MessageTraceId -RecipientAddress $MessageTrace.RecipientAddress
+                $MTDReport += $MessageTraceDetail
+                
+                $i++
+                Start-Sleep -m 500
+            }
         
-        $i++
-        Start-Sleep -m 500
-    }
+            $MTDReport | Select-Object -Property Date, MessageId, MessageTraceId, Event, Action, Detail, Data, FromIP, ToIP | Export-Csv "$LogPath\MessageTraceDetail.csv" -NoTypeInformation -Append
+            Write-Host -ForegroundColor Green "Exported Get-MessageTraceDetail output to $LogPath\MessageTraceDetail.csv"
+        }
 
-    $MTDReport | Select-Object -Property Date, MessageId, MessageTraceId, Event, Action, Detail, Data, FromIP, ToIP | Export-Csv "$LogPath\MessageTraceDetail.csv" -NoTypeInformation -Append
-    Write-Host "Exported Get-MessageTraceDetail output to $LogPath\MessageTraceDetail.csv"
+        'B'
+        {   
+            Write-Host -ForegroundColor Green "Cancelled Get-MessageTraceDetail log collection"
+            break
+        }
+
+        Default 
+        {
+            Get-O365MessageTraceDetail($SummaryReport)
+        }
+    }
 }
 
+
+# Main Script Section
+###Calls EXO Connection function
+###Collects Get-MessageTrace & Get-MessageTraceDetail output
+###Writes Log files on Desktop
 
 $ts = Get-Date -Format yyyyMMdd_HHmm
 $LogPath=[Environment]::GetFolderPath("Desktop")+"\$($ts)_MessageTrace"
