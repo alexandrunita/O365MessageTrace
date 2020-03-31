@@ -36,7 +36,8 @@ function Get-O365MessageTrace
 
 function Get-O365MessageTraceDetail($SummaryReport)
 {
-    Write-Host -ForegroundColor Yellow "Do you want to run Get-MessageTraceDetail and export CSV output?
+    Write-Host -ForegroundColor Yellow "We have $SummaryReport.Count Get-MessageTraceDetail operations to run
+    Do you want to run Get-MessageTraceDetail and export CSV output?
     Warning : This is a long running diagnostic
     A: Yes
     B: No"
@@ -88,8 +89,8 @@ $LogPath=[Environment]::GetFolderPath("Desktop")+"\$($ts)_MessageTrace"
 Write-Host "Created Directory on Desktop:"
 mkdir "$LogPath"
 
-$StartDate = ([DateTime]::Now.AddDays(-10))
-$EndDate = ([DateTime]::Now)
+$StartDate = ([DateTime]::UtcNow.AddDays(-10))
+$EndDate = ([DateTime]::UtcNow)
 
 $SummaryReport = $null
 $MTDReport = $null
