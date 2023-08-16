@@ -23,6 +23,7 @@ PSVersion                      7.3.6
 PSEdition                      Core
 ```
 ```
-> Get-ComputerInfo|fl OsVersion
+> Get-ComputerInfo|fl OsName, OsVersion
+OsName    : Microsoft Windows 11 Enterprise
 OsVersion : 10.0.22621
 ```
