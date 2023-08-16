@@ -7,7 +7,7 @@ For more information on Message Traces in Exchange, check Microsoft documentatio
 Before running the script, you need to be connected to Exchange Online Powershell:
 [Exchange Online Powershell Module](https://learn.microsoft.com/powershell/exchange/connect-to-exchange-online-powershell?view=exchange-ps)
 
-This script was built and tested on Windows 11 with the following versions of Powershell:
+This script was built and tested on Windows 11, with the following versions of Powershell and ExchangeOnline Module:
 ```
 > $PSVersionTable
 Name                           Value
@@ -21,6 +21,10 @@ Name                           Value
 ----                           -----
 PSVersion                      7.3.6
 PSEdition                      Core
+```
+```
+> Get-Module "ExchangeOnlineManagement"|fl Version
+Version : 3.2.0
 ```
 ```
 > Get-ComputerInfo|fl OsName, OsVersion
