@@ -13,35 +13,60 @@ using namespace System.Collections.Generic
 
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory = $false)][string]$SenderAddress = $null,
-    [Parameter(Mandatory = $false)][datetime]$StartDate,
-    [Parameter(Mandatory = $false)][datetime]$EndDate,
-    [Parameter(Mandatory = $false)][Int16]$NumberOfDaysInPast,
+    [Parameter(Mandatory = $false)][string]$SenderAddress,
+    [Parameter(Mandatory = $false)][string]$RecipientAddress,
+    [Parameter(Mandatory = $false)][string]$MessageId,
+    [Parameter(Mandatory = $false)][string[]]$DeliveryStatuses = @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam"),
+    [Parameter(Mandatory = $false)][datetime]$StartDate = [DateTime]::UtcNow.AddDays(-2),
+    [Parameter(Mandatory = $false)][datetime]$EndDate = [DateTime]::UtcNow,
     [Parameter(Mandatory = $false)][bool]$IncludeExtendedSummary = $false
 )
 
-function Get-SummaryReport
-{
+function Get-SummaryReport {
     param (
         [Parameter(Mandatory = $true)][datetime]$StartDate,
         [Parameter(Mandatory = $true)][datetime]$EndDate,
-        [Parameter(Mandatory = $false)][string]$SenderAddress
+        [Parameter(Mandatory = $true)][string[]]$DeliveryStatuses,
+        [Parameter(Mandatory = $false)][string]$SenderAddress,
+        [Parameter(Mandatory = $false)][string]$RecipientAddress,
+        [Parameter(Mandatory = $false)][string]$MessageId
     )
     # initialize Empty generic list
     $SummaryReport = [List[PSObject]]::new()
     $i = 1
-    while($true)
-    {
-        Write-Host "Collecting information from MessageTrace Trace Page $i"
 
-        # check if SenderAddress provided
-        if($SenderAddress.Length -ne 0){
-            [PSObject[]]$CurrentMessageTrace = Get-MessageTrace -SenderAddress $SenderAddress -StartDate $StartDate -EndDate $EndDate -PageSize 5000 -Page $i
-        }
-        else {
-            [PSObject[]]$CurrentMessageTrace = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -PageSize 5000 -Page $i
+    #Start building Get-MessageTrace cmdlet expression based on input params
+    [string]$GetMessageTraceExpression = "Get-MessageTrace -Status $($DeliveryStatuses -join ',') -StartDate $($StartDate.Ticks) -EndDate $($EndDate.Ticks)"
+
+    # check if MessageId provided
+    if($MessageId.Length -ne 0) {
+        $GetMessageTraceExpression += " -MessageId '$MessageId'"
+    }
+
+    # check if SenderAddress provided
+    if($SenderAddress.Length -ne 0) {
+        $GetMessageTraceExpression += " -SenderAddress $SenderAddress"
+    }
+
+    # check if RecipientAddress provided
+    if($RecipientAddress.Length -ne 0) {
+        $GetMessageTraceExpression += " -RecipientAddress $RecipientAddress"
+    }
+
+    # add pagination values
+    $GetMessageTraceExpression +=  " -PageSize 5000 -Page $i"
+
+    while($true) {
+        Write-Host -NoNewline "`rCollecting Summary Trace Page $i"
+
+        #Update expression Page number starting with second loop
+        if($i -gt 1) {
+            $GetMessageTraceExpression = $GetMessageTraceExpression.Substring(0, $GetMessageTraceExpression.Length - "-Page $($i -1)".Length) + "-Page $i"
         }
 
+        #Invoke Expression we built to query EXO for required message trace information
+        [PSObject[]]$CurrentMessageTrace = Invoke-Expression $GetMessageTraceExpression
+        
         # if message trace results not null, add them to List&Export to local drive, else break out of the loop
         if($null -ne $CurrentMessageTrace) {
             [void]$SummaryReport.AddRange($CurrentMessageTrace)
@@ -50,9 +75,12 @@ function Get-SummaryReport
         else {break}
         $i++
 
-        Start-Sleep -m 500
+        Start-Sleep -m 200
     }
 
+    # line feed after loop ended
+    Write-Host
+    
     # provide feedback to console if no emails found
     if($null -eq $SummaryReport[0]) {
         Write-Warning "No Emails found for this query"
@@ -66,8 +94,7 @@ function Get-SummaryReport
     return $SummaryReport
 }
 
-function Get-ExtendedSummaryReport
-{
+function Get-ExtendedSummaryReport {
     param (
         [Parameter(Mandatory = $true)][psobject[]]$SummaryReport,
         [Parameter(Mandatory = $true)][datetime]$StartDate,
@@ -76,35 +103,56 @@ function Get-ExtendedSummaryReport
 
     #initialize empty generic list
     $MTDReport = [List[PSObject]]::new()
+    $MTDEmpty = $true
+    
+    #Counters for loop
     $i = 1
+    $NumberOfLoops = $SummaryReport.Count
+    $ResetAfter1000Loops = 0
 
     #iterate through each Summary Report Entry and retrieve MTD data
     foreach($Report in $SummaryReport) {
 
-        Write-Host "Collecting information from MessageTraceDetail Page $i"
+        Write-Host -NoNewline "`rCollecting MessageTraceDetail Entry $i out of $NumberOfLoops"
 
         [PSObject[]]$CurrentMTD = Get-MessageTraceDetail -StartDate $StartDate -EndDate $EndDate -MessageTraceId $Report.MessageTraceId -RecipientAddress $Report.RecipientAddress | Select-Object Date, MessageId, MessageTraceId, @{Name="SenderAddress";expression={$Report.SenderAddress}}, @{Name="RecipientAddress";expression={$Report.RecipientAddress}}, Event, Action, Detail, Data
 
         # Check if MTD entry null, do not export if null
         if($null -ne $CurrentMTD) {
             [void]$MTDReport.AddRange($CurrentMTD)
-            $CurrentMTD | Export-Csv "$LogPath\MTDReport.csv" -NoTypeInformation -Append
-        }
-        $i++
+            #make sure MTDEmpty is false, data was retrieved
+            $MTDEmpty = $false
+            #Skip for now, too many writes to disk, too slow
+            #$CurrentMTD | Export-Csv "$LogPath\MTDReport.csv" -NoTypeInformation -Append
 
-        Start-Sleep -m 500
+        }
+
+        $i++
+        $ResetAfter1000Loops++
+        # Check if 1000 loops performed, export and clear list, then reset counter
+        if($ResetAfter1000Loops -eq 1000) {
+            $MTDReport | Export-Csv "$LogPath\MTDReport.csv" -NoTypeInformation -Append
+            $MTDReport.Clear()
+            $ResetAfter1000Loops = 0
+        }
+
+        Start-Sleep -m 200
     }
 
+    # line feed after loop ended
+    Write-Host
+
     #provide feedback to console if no emails found
-    if($null -eq $MTDReport[0]) {
+    if($MTDEmpty) {
         Write-Warning "Extended Summary Report found no data for emails form Summary Report"
     }
     else {
+        # see if it makes sense, will be a lot of memory used though
+        $MTDReport | Export-Csv "$LogPath\MTDReport.csv" -NoTypeInformation -Append
         Write-Host -ForegroundColor Green "Exported Get-MessageTraceDetail output to
         $LogPath\MTDReport.csv"
     }
 
-    return $MTDReport
 }
 
 ################################################################################################
@@ -137,27 +185,41 @@ catch {
     Exiting the script"
     Exit
 }
+
+#Check if Delivery Status input is valid
+foreach($Status in $DeliveryStatuses) {
+    if ($Status -notin @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")) {
+        Write-Error -ErrorAction Continue "Invalid Delivery Status list provided, valid values are:
+        'GettingStatus', 'Failed', 'Pending', 'Delivered', 'Expanded', 'Quarantined', 'FilteredAsSpam'
+        The script will now exit, retry with valid input."
+        Exit
+    }
+}
+
 #Create Log File Directory on Desktop
-$ts = Get-Date -Format yyyyMMdd_HHmm
+$ts = Get-Date -Format yyyyMMdd_HHmm_ff
 $LogPath=[Environment]::GetFolderPath("Desktop")+"\MessageTraceScript\$($ts)_MessageTrace"
 Write-Host "Created Directory on Desktop:"
 mkdir "$LogPath"
 
+#For long running task Get-ExtendedSummaryReport we need to keep Windows Alive
+#Creating object to call to hit key
+#$KeepPCAlive = New-Object -ComObject WScript.Shell #Credit for this option goes to : https://gist.github.com/jamesfreeman959/231b068c3d1ed6557675f21c0e346a9c
+
 #If no Start/End Dates provided by end user, default to StartDate 2 days ago and EndDate now
-if($StartDate -eq $null) {
+<#if($StartDate -eq $null) {
     $StartDate = ([DateTime]::UtcNow.AddDays(-2))
 }
 if($EndDate -eq $null) {
     $EndDate = ([DateTime]::UtcNow)
-}
+}#>
 
 $SummaryReport = $null
 $MTDReport = $null
 
 #Collect Summary Report
-$SummaryReport = Get-SummaryReport -SenderAddress $SenderAddress -StartDate $StartDate -EndDate $EndDate
+$SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -DeliveryStatuses $DeliveryStatuses -SenderAddress $SenderAddress -RecipientAddress $RecipientAddress -MessageId $MessageId
 #Check if ExtendedSummary requested and SummaryReport not empty before attempting to collect Extended Summary
-if($IncludeExtendedSummary -and ($null -ne $SummaryReport))
-{
-    $MTDReport = Get-ExtendedSummaryReport -StartDate $StartDate -EndDate $EndDate -SummaryReport $SummaryReport
+if($IncludeExtendedSummary -and ($null -ne $SummaryReport)) {
+    Get-ExtendedSummaryReport -StartDate $StartDate -EndDate $EndDate -SummaryReport $SummaryReport
 }
