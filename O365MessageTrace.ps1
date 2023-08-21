@@ -16,7 +16,10 @@ param (
     [Parameter(Mandatory = $false)][string]$SenderAddress,
     [Parameter(Mandatory = $false)][string]$RecipientAddress,
     [Parameter(Mandatory = $false)][string]$MessageId,
-    [Parameter(Mandatory = $false)][string[]]$DeliveryStatuses = @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam"),
+    [Parameter(Mandatory = $false)]
+        [ValidateSet("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")]
+        [string[]]
+        $DeliveryStatuses = @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam"),
     [Parameter(Mandatory = $false)][datetime]$StartDate = [DateTime]::UtcNow.AddDays(-2),
     [Parameter(Mandatory = $false)][datetime]$EndDate = [DateTime]::UtcNow,
     [Parameter(Mandatory = $false)][bool]$IncludeExtendedSummary = $false
@@ -66,7 +69,7 @@ function Get-SummaryReport {
 
         #Invoke Expression we built to query EXO for required message trace information
         [PSObject[]]$CurrentMessageTrace = Invoke-Expression $GetMessageTraceExpression
-        
+
         # if message trace results not null, add them to List&Export to local drive, else break out of the loop
         if($null -ne $CurrentMessageTrace) {
             [void]$SummaryReport.AddRange($CurrentMessageTrace)
@@ -186,16 +189,8 @@ catch {
     Exit
 }
 
-#Check if Delivery Status input is valid
-foreach($Status in $DeliveryStatuses) {
-    if ($Status -notin @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")) {
-        Write-Error -ErrorAction Continue "Invalid Delivery Status list provided, valid values are:
-        'GettingStatus', 'Failed', 'Pending', 'Delivered', 'Expanded', 'Quarantined', 'FilteredAsSpam'
-        The script will now exit, retry with valid input."
-        Exit
-    }
-}
-
+#Perform Delivery Status de-duplication for user input, this prevents errors due to duplicate statuse when running Get-MessageTrace later on during logic
+$DeliveryStatuses = $DeliveryStatuses|Select-Object -Unique
 #Create Log File Directory on Desktop
 $ts = Get-Date -Format yyyyMMdd_HHmm_ff
 $LogPath=[Environment]::GetFolderPath("Desktop")+"\MessageTraceScript\$($ts)_MessageTrace"
