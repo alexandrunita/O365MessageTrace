@@ -2,12 +2,45 @@
 .SYNOPSIS
 This script provides options for collecting Summary/Detailed Message Trace information from EXO.
 
+.DESCRIPTION
 By default, it will retrieve logs for the past 2 days, to customize within the maximum last 10 day interval you must provide StartDate & EndDate parameters.
 
 By default, the script will export all traffic, you may filter the query based on SenderAddress.
 
 By default, the script will only collect and export Summary Report data, you must request Extended Summary via dedicated switch to also get that output.
 Please be aware Extended Summary collection will be a long running task especially on production tenants with large email volume.
+
+.PARAMETER StartDate
+DateTime .Net object must be passed, taking into account that Exchange Online Message Trace data always reflects UTC time.
+If omitted, script will default to value : [DateTime]::UtcNow.AddDays(-2) .
+For more information: https://learn.microsoft.com/en-us/dotnet/api/system.datetime?view=net-7.0
+
+.PARAMETER EndDate
+DateTime .Net object must be passed, taking into account that Exchange Online Message Trace data always reflects UTC time.
+If omitted, script will default to value : [DateTime]::UtcNow .
+For more information: https://learn.microsoft.com/en-us/dotnet/api/system.datetime?view=net-7.0
+
+.PARAMETER SenderAddress
+Single Sender Email Address used to query Exchange Online Message Trace data.
+
+.PARAMETER RecipientAddress
+Single Recipient Email Address used to query Exchange Online Message Trace data.
+
+.PARAMETER MessageId
+MessageId header value used to query Exchange Online Message Trace data.
+For more information: https://learn.microsoft.com/en-us/powershell/module/exchange/get-messagetrace?view=exchange-ps#-messageid 
+
+.PARAMETER DeliveryStatuses
+Email status MultiValuedProperty used to query Exchange Online Message Trace Data.
+Valid values are : GettingStatus, Failed, Pending, Delivered, Expanded, Quarantined, FilteredAsSpam
+For more information: https://learn.microsoft.com/en-us/powershell/module/exchange/get-messagetrace?view=exchange-ps#-status
+
+.PARAMETER IncludeExtendedSummary
+Will default to $false, must be explicitly provided with $true value to instruct the script to contain Get-MessageTraceDetail logs from Exchange Online.
+
+.EXAMPLE
+#TODO examples for running script
+
 #>
 using namespace System.Collections.Generic
 
