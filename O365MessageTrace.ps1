@@ -39,7 +39,20 @@ For more information: https://learn.microsoft.com/en-us/powershell/module/exchan
 Will default to $false, must be explicitly provided with $true value to instruct the script to contain Get-MessageTraceDetail logs from Exchange Online.
 
 .EXAMPLE
-#TODO examples for running script
+.\O365MessageTrace.ps1 -DeliveryStatuses Failed, Pending
+Retrieves all emails where Delivery Status is Failed or Pending in the past 48 hours.
+
+.EXAMPLE
+.\O365MessageTrace.ps1 -SenderAddress user@contoso.com -StartDate ([datetime]::UtcNow).AddDays(-10)
+Retrieves all email sent by user@contoso.com starting with 10 days ago, EndDate will default to [datetime]::UtcNow as it was not specified.
+
+.EXAMPLE
+.\O365MessageTrace.ps1 -SenderAddress user@contoso.com -RecipientAddress user@fabrikam.com -MessageId "<1241241@contoso.com>"
+Retrieves events for the email with the specified MessageId string where SenderAddress and RecipientAddress match provided inputs.
+
+.EXAMPLE
+.\O365MessageTrace.ps1 -RecipientAddress user@contoso.com -IncludeExtendedSummary $true
+Retrieves all emails sent to user@contoso.com in the past 48 hours and exports both Summary Report and Enhanced Summary Report that contains extra routing information which may assist in advanced troubleshooting.
 
 #>
 using namespace System.Collections.Generic
