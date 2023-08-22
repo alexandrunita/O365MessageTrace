@@ -64,8 +64,7 @@ param (
     [Parameter(Mandatory = $false)][string]$MessageId,
     [Parameter(Mandatory = $false)]
         [ValidateSet("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")]
-        [string[]]
-        $DeliveryStatuses = @("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam"),
+        [string[]]$DeliveryStatuses,
     [Parameter(Mandatory = $false)][datetime]$StartDate = [DateTime]::UtcNow.AddDays(-2),
     [Parameter(Mandatory = $false)][datetime]$EndDate = [DateTime]::UtcNow,
     [Parameter(Mandatory = $false)][bool]$IncludeExtendedSummary = $false
@@ -75,7 +74,7 @@ function Get-SummaryReport {
     param (
         [Parameter(Mandatory = $true)][datetime]$StartDate,
         [Parameter(Mandatory = $true)][datetime]$EndDate,
-        [Parameter(Mandatory = $true)][string[]]$DeliveryStatuses,
+        [Parameter(Mandatory = $false)][string[]]$DeliveryStatuses,
         [Parameter(Mandatory = $false)][string]$SenderAddress,
         [Parameter(Mandatory = $false)][string]$RecipientAddress,
         [Parameter(Mandatory = $false)][string]$MessageId
@@ -85,7 +84,12 @@ function Get-SummaryReport {
     $i = 1
 
     #Start building Get-MessageTrace cmdlet expression based on input params
-    [string]$GetMessageTraceExpression = "Get-MessageTrace -Status $($DeliveryStatuses -join ',') -StartDate $($StartDate.Ticks) -EndDate $($EndDate.Ticks)"
+    [string]$GetMessageTraceExpression = "Get-MessageTrace -StartDate $($StartDate.Ticks) -EndDate $($EndDate.Ticks)"
+
+    # check if DeliveryStatus provided
+    if($DeliveryStatuses.Length -ne 0) {
+        $GetMessageTraceExpression += " -Status $($DeliveryStatuses -join ',')"
+    }
 
     # check if MessageId provided
     if($MessageId.Length -ne 0) {
@@ -168,6 +172,20 @@ function Get-ExtendedSummaryReport {
 
         # Check if MTD entry null, do not export if null
         if($null -ne $CurrentMTD) {
+            #must check if Drop Event occurred for original recipient
+            #if Drop event occurred, we must truncate MTDReport array to avoid confusing output
+            #by default Get-MessageTraceDetail will provide output for the email entity
+            #it will not take into account recipient change in transit
+            #For example : we send email to originalRecipient@contoso.com who redirects email to newRecipient@contoso.com
+            #originalRecipient@contoso.com has DeliverToMailboxAndForward : False
+            #Get-MessageTraceDetail -MessageID "xyz" -RecipientAddress originalRecipient@contoso.com will display output tracking email entity to delivery to newRecipient@contoso.com.
+            #It does not store recipient address, this can confuse someone who looks at the report that an email was Delivered/SentExternal/etc.. to originalRecipient@contoso.com 
+            #although the email was actually dropped for that recipient and the events we see afterwards actually belong to email entity and describe handling for newRecipient@contoso.com
+            if($CurrentMTD.Event -contains "Drop") {
+                # make sure logs are in chronological order
+                $CurrentMTD = $CurrentMTD|Sort-Object Date
+                $CurrentMTD = $CurrentMTD[0..$CurrentMTD.Event.IndexOf("Drop")]
+            }
             [void]$MTDReport.AddRange($CurrentMTD)
             #make sure MTDEmpty is false, data was retrieved
             $MTDEmpty = $false
@@ -235,8 +253,12 @@ catch {
     Exit
 }
 
-#Perform Delivery Status de-duplication for user input, this prevents errors due to duplicate statuse when running Get-MessageTrace later on during logic
-$DeliveryStatuses = $DeliveryStatuses|Select-Object -Unique
+#If Delivery Status input provided, perform Delivery Status de-duplication for user input
+#this prevents errors due to duplicate statuse when running Get-MessageTrace later on during logic
+if($DeliveryStatuses.Length -ne 0){
+    $DeliveryStatuses = $DeliveryStatuses|Select-Object -Unique
+}
+
 #Create Log File Directory on Desktop
 $ts = Get-Date -Format yyyyMMdd_HHmm_ff
 $LogPath=[Environment]::GetFolderPath("Desktop")+"\MessageTraceScript\$($ts)_MessageTrace"
