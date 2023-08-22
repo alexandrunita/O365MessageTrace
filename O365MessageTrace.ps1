@@ -151,7 +151,7 @@ function Get-ExtendedSummaryReport {
 
         Write-Host -NoNewline "`rCollecting MessageTraceDetail Entry $i out of $NumberOfLoops"
 
-        [PSObject[]]$CurrentMTD = Get-MessageTraceDetail -StartDate $StartDate -EndDate $EndDate -MessageTraceId $Report.MessageTraceId -RecipientAddress $Report.RecipientAddress | Select-Object Date, MessageId, MessageTraceId, @{Name="SenderAddress";expression={$Report.SenderAddress}}, @{Name="RecipientAddress";expression={$Report.RecipientAddress}}, Event, Action, Detail, Data
+        [PSObject[]]$CurrentMTD = Get-MessageTraceDetail -StartDate $StartDate -EndDate $EndDate -MessageTraceId $Report.MessageTraceId -RecipientAddress $Report.RecipientAddress | Select-Object Date, MessageId, MessageTraceId, @{Name="SenderAddress";expression={$Report.SenderAddress}}, @{Name="RecipientAddress";expression={$Report.RecipientAddress}}, @{Name="Subject";expression={$Report.Subject}}, Event, Action, Detail, Data
 
         # Check if MTD entry null, do not export if null
         if($null -ne $CurrentMTD) {
