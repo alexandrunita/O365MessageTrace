@@ -193,7 +193,7 @@ function Get-ExtendedSummaryReport {
 
     #provide feedback to console if no emails found
     if($MTDEmpty) {
-        Write-Warning "Extended Summary Report found no data for emails form Summary Report"
+        Write-Warning "Extended Summary Report found no data for emails from Summary Report"
     }
     else {
         # see if it makes sense, will be a lot of memory used though
