@@ -172,6 +172,12 @@ function Get-ExtendedSummaryReport {
 
         # Check if MTD entry null, do not export if null
         if($null -ne $CurrentMTD) {
+            #must truncate any events after resolve, none will be relevant for current recipient email address, they will just duplicate events for the new recipient email address
+            if($CurrentMTD.Event -contains "Resolve") {
+                # make sure logs are in chronological order
+                $CurrentMTD = $CurrentMTD|Sort-Object Date
+                $CurrentMTD = $CurrentMTD[0..$CurrentMTD.Event.IndexOf("Resolve")]
+            }
             #must check if Drop Event occurred for original recipient
             #if Drop event occurred, we must truncate MTDReport array to avoid confusing output
             #by default Get-MessageTraceDetail will provide output for the email entity
