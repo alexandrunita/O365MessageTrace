@@ -22,9 +22,11 @@ For more information: https://learn.microsoft.com/en-us/dotnet/api/system.dateti
 
 .PARAMETER SenderAddress
 Single Sender Email Address used to query Exchange Online Message Trace data.
+Accepts wildcard value such as "*@contoso.com".
 
 .PARAMETER RecipientAddress
 Single Recipient Email Address used to query Exchange Online Message Trace data.
+Accepts wildcard value such as "*@contoso.com".
 
 .PARAMETER MessageId
 MessageId header value used to query Exchange Online Message Trace data.
