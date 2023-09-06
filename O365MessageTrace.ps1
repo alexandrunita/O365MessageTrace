@@ -231,7 +231,7 @@ function Get-ExtendedSummaryReport {
 }
 
 ################################################################################################
-# Main Script Section
+#region Main Script
 
 #Recommended Exchange Online Module Version
 [string]$RecEXOModuleVersion = "3.2.0"
@@ -294,3 +294,5 @@ $SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -Deli
 if($IncludeExtendedSummary -and ($null -ne $SummaryReport)) {
     Get-ExtendedSummaryReport -StartDate $StartDate -EndDate $EndDate -SummaryReport $SummaryReport
 }
+
+#endregion
