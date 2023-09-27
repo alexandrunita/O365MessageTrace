@@ -36,4 +36,20 @@ if($FailMTD.count -ne 0) {
 $FailDSNList|Group-Object|Sort-Object Count -descending|ft Name,Count
 
 #TODO - Defer DSN stats
+#Initializing DeferDSNList
+$DeferDSNList = [List[string]]::new()
+#TODO - Defer DSN stats
+$DeferMTD = $MTDReport|where{$_.Event -eq "Defer"}
+if($DeferMTD.count -ne 0) {
+    foreach($Defer in $DeferMTD) {
+        if($Matches.count -ne 0) {$Matches.Clear()}
+        $Defer.Detail -match "Reason: \[?{?(?'DSN'.*)}?;?" | Out-Null
+        if($Matches['DSN'].Contains(";")) {
+            $CurrentMatch = $Matches['DSN'].split(";")[0]
+        }
+        else {$CurrentMatch = $Matches['DSN']}
+        $DeferDSNList.Add($CurrentMatch)
+    }
+}
+$DeferDSNList|Group-Object|Sort-Object Count -descending|ft Name,Count
 #endregion
