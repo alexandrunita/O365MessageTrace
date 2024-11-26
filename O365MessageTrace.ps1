@@ -64,6 +64,7 @@ param (
     [Parameter(Mandatory = $false)][string]$SenderAddress,
     [Parameter(Mandatory = $false)][string]$RecipientAddress,
     [Parameter(Mandatory = $false)][string]$MessageId,
+    [Parameter(Mandatory = $false)][string]$FromIP,
     [Parameter(Mandatory = $false)]
         [ValidateSet("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")]
         [string[]]$DeliveryStatuses,
@@ -79,7 +80,8 @@ function Get-SummaryReport {
         [Parameter(Mandatory = $false)][string[]]$DeliveryStatuses,
         [Parameter(Mandatory = $false)][string]$SenderAddress,
         [Parameter(Mandatory = $false)][string]$RecipientAddress,
-        [Parameter(Mandatory = $false)][string]$MessageId
+        [Parameter(Mandatory = $false)][string]$MessageId,
+        [Parameter(Mandatory = $false)][string]$FromIP
     )
     # initialize Empty generic list
     $SummaryReport = [List[PSObject]]::new()
@@ -106,6 +108,10 @@ function Get-SummaryReport {
     # check if RecipientAddress provided
     if($RecipientAddress.Length -ne 0) {
         $GetMessageTraceExpression += " -RecipientAddress $RecipientAddress"
+    }
+
+    if($FromIP.Length -ne 0) {
+        $GetMessageTraceExpression += " -FromIP $FromIP"
     }
 
     # add pagination values
@@ -268,7 +274,7 @@ if($DeliveryStatuses.Length -ne 0){
 }
 
 #Create Log File Directory on Desktop
-$ts = Get-Date -Format yyyyMMdd_HHmm_ff
+$ts = Get-Date -Format yyyyMMdd_HHmm_ss_ff
 $LogPath=[Environment]::GetFolderPath("Desktop")+"\MessageTraceScript\$($ts)_MessageTrace"
 Write-Host "Created Directory on Desktop:"
 mkdir "$LogPath"
@@ -289,7 +295,7 @@ $SummaryReport = $null
 $MTDReport = $null
 
 #Collect Summary Report
-$SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -DeliveryStatuses $DeliveryStatuses -SenderAddress $SenderAddress -RecipientAddress $RecipientAddress -MessageId $MessageId
+$SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -DeliveryStatuses $DeliveryStatuses -SenderAddress $SenderAddress -RecipientAddress $RecipientAddress -MessageId $MessageId -FromIP $FromIP
 #Check if ExtendedSummary requested and SummaryReport not empty before attempting to collect Extended Summary
 if($IncludeExtendedSummary -and ($null -ne $SummaryReport)) {
     Get-ExtendedSummaryReport -StartDate $StartDate -EndDate $EndDate -SummaryReport $SummaryReport
