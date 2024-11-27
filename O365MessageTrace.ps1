@@ -65,6 +65,7 @@ param (
     [Parameter(Mandatory = $false)][string]$RecipientAddress,
     [Parameter(Mandatory = $false)][string]$MessageId,
     [Parameter(Mandatory = $false)][string]$FromIP,
+    [Parameter(Mandatory = $false)][string]$ToIP,
     [Parameter(Mandatory = $false)]
         [ValidateSet("GettingStatus", "Failed", "Pending", "Delivered", "Expanded", "Quarantined", "FilteredAsSpam")]
         [string[]]$DeliveryStatuses,
@@ -81,7 +82,8 @@ function Get-SummaryReport {
         [Parameter(Mandatory = $false)][string]$SenderAddress,
         [Parameter(Mandatory = $false)][string]$RecipientAddress,
         [Parameter(Mandatory = $false)][string]$MessageId,
-        [Parameter(Mandatory = $false)][string]$FromIP
+        [Parameter(Mandatory = $false)][string]$FromIP,
+        [Parameter(Mandatory = $false)][string]$ToIP
     )
     # initialize Empty generic list
     $SummaryReport = [List[PSObject]]::new()
@@ -112,6 +114,10 @@ function Get-SummaryReport {
 
     if($FromIP.Length -ne 0) {
         $GetMessageTraceExpression += " -FromIP $FromIP"
+    }
+
+    if($ToIP.Length -ne 0) {
+        $GetMessageTraceExpression += " -ToIP $ToIP"
     }
 
     # add pagination values
@@ -295,7 +301,7 @@ $SummaryReport = $null
 $MTDReport = $null
 
 #Collect Summary Report
-$SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -DeliveryStatuses $DeliveryStatuses -SenderAddress $SenderAddress -RecipientAddress $RecipientAddress -MessageId $MessageId -FromIP $FromIP
+$SummaryReport = Get-SummaryReport -StartDate $StartDate -EndDate $EndDate -DeliveryStatuses $DeliveryStatuses -SenderAddress $SenderAddress -RecipientAddress $RecipientAddress -MessageId $MessageId -FromIP $FromIP -ToIP $ToIP
 #Check if ExtendedSummary requested and SummaryReport not empty before attempting to collect Extended Summary
 if($IncludeExtendedSummary -and ($null -ne $SummaryReport)) {
     Get-ExtendedSummaryReport -StartDate $StartDate -EndDate $EndDate -SummaryReport $SummaryReport
